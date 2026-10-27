@@ -80,6 +80,12 @@ const int payload_size = num_leds * 3;             // 3 bytes per LED (R, G, B)
 // Array holding RGB values for all 72 LEDs to send in MQTT payload
 byte RGBpayload[payload_size];
 
+//Colours that need to be connected (ROYGBIV in reverse as it is faster to remove the end of a string)
+char[6] = "VIBGYO"
+
+//create an array representation of the LED lights
+bool excluded[num_leds];
+
 void setup() {
   while (!Serial){};
   Serial.begin(115200);
@@ -100,7 +106,9 @@ void setup() {
   //Start magnetometer
   I2CwriteByte(MPU9250_MAG_ADDRESS, 0x0A, 0x12); // Request continuous magnetometer measurements in 16 bits (mode 1)
 
-  
+  //RNG Seed
+  randomSeed(42);
+
   // Status LEDs on MKR1010 NINA module
   WiFiDrv::pinMode(25, OUTPUT); // R
   WiFiDrv::pinMode(26, OUTPUT); // G
@@ -163,6 +171,87 @@ void loop() {
 
   // Pause at the end of the cycle
   delay(1000);
+}
+
+//Movement Logic
+void move(int gx, int gy, int gz){
+
+}
+
+//Initialise board
+void initialise(){
+  // red dot (current dot) always starts in the same square
+  int curr = 3;
+  int target = chooseLED(curr, excluded);
+
+}
+
+
+
+// Mark LEDs that are too close to the current point (around a 5x5 box)
+// and then choose a random LED that is available
+void chooseLED(int curr, bool excluded[num_leds]) {
+  for (int i = 0; i < num_leds; i++) {
+    excluded[i] = false;
+  }
+  
+  int col = curr / PIXELS_PER_COL;
+  int row = curr % PIXELS_PER_COL;
+
+  //iterate from curr col - 2 to curr col + 2
+  for (int dc = -2; dc <= 2; dc++) {
+    int c = (col + dc + NUM_COLUMNS) % NUM_COLUMNS;
+
+    //iterate from curr row - 2 to curr row + 2
+    for (int dr = -2; dr <= 2; dr++) {
+      int r = (row + dr + PIXELS_PER_COL) % PIXELS_PER_COL;
+      excluded[c * PIXELS_PER_COL + r] = true;
+    }
+  }
+  
+  int available[num_leds];
+  int count = 0;
+
+  //iterate through the LEDs and exclude the LEDs within the 5x5 box
+  for (int i = 0; i < num_leds; i++) {
+    if (!excluded[i]) {
+      available[count++] = i;
+    }
+  }
+
+  if (count == 0) {
+    return -1;
+  }
+  return available[random(count)];
+}
+
+void setColour(int dot, int colour){
+  if (mqttClient.connected()){
+    switch(colour){
+      case 'R':
+        break;
+        
+      case 'O':
+        break;
+
+      case 'Y':
+        break;
+      
+      case 'G':
+        break;
+      
+      case 'B':
+        break;
+      
+      case 'I':
+        break;
+      
+      case 'V':
+        break;
+
+      
+    }
+  }
 }
 
 // Sets all 72 LEDs to the given (r, g, b) color and publishes to MQTT
