@@ -80,8 +80,16 @@ const int payload_size = num_leds * 3;             // 3 bytes per LED (R, G, B)
 // Array holding RGB values for all 72 LEDs to send in MQTT payload
 byte RGBpayload[payload_size];
 
-//Colours that need to be connected (ROYGBIV in reverse as it is faster to remove the end of a string)
-char[6] = "VIBGYO"
+//Colours that need to be caught (ROYGBIV in reverse as it is faster to remove the end of a string)
+String rainbow = "VIBGYO";
+
+// red dot (current dot) always starts in the same square
+int curr = 3;
+// first target colour is orange as it comes after red
+int target = -1;
+char targetColour = 'O';
+// turn true when all the colours have been caught
+bool gameComplete = false;
 
 //create an array representation of the LED lights
 bool excluded[num_leds];
@@ -132,10 +140,13 @@ void setup() {
   mqttClient.setServer(mqtt_server, mqtt_port);
   mqttClient.setBufferSize(512);
   mqttClient.setKeepAlive(30);
-
+  
+  target = chooseLED(curr, excluded);
 
   Serial.println(F("Setup complete!"));
 }
+
+
 
 void loop() {
   // Ensure network connectivity
@@ -148,23 +159,36 @@ void loop() {
   mqttClient.loop();
   unsigned long currentMillis = millis();
 
+  if (gameComplete) {
+    rainbowCycle();
+    return;
+  }
+
   if (isImuReady()) {
     readRawImu();
     normalize(gyroscope);
     normalize(accelerometer);
     normalize(temperature);
   }
-
+  
   if (currentMillis - lastPrintMillis > INTERVAL_MS_PRINT) {
-    int x = normalized.accelerometer.x;
-    int y = normalized.accelerometer.y;
-    int z = normalized.accelerometer.z;
-    Serial.println(x);
-    Serial.println(y);
-    Serial.println(z);
-    send_colour_to_all(x*20, y*20, z*5);
-
+    int gx = normalized.gyroscope.x;
+    int gy = normalized.gyroscope.y;
+    int gz = normalized.gyroscope.z;
+    
+    Serial.println(gx);
+    Serial.println(gy);
+    Serial.println(gz);
     Serial.println();
+    move(gx, gy);
+    if(curr == target){
+      captured();
+    }
+
+    if(!gameComplete){
+      setColour(curr, 'R');
+      setColour(target, targetColour);
+    }
 
     lastPrintMillis = currentMillis;
   }
@@ -174,23 +198,45 @@ void loop() {
 }
 
 //Movement Logic
-void move(int gx, int gy, int gz){
+void move(int gx, int gy){
+  int absGx = abs(gx);
+  int absGy = abs(gy);
+  if (max(absGx, absGy) < 30) {
+    return;
+  }
 
+  //ignore gz because it only affects rotation around the z-axis (ie when you turn the sensor on a flat surface)
+  int col = curr / PIXELS_PER_COL;
+  int row = curr % PIXELS_PER_COL;
+
+  //set the previous LED to blank
+  RGBpayload[curr * 3 + 0] = (byte)0;
+  RGBpayload[curr * 3 + 1] = (byte)0;
+  RGBpayload[curr * 3 + 2] = (byte)0;
+  mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
+
+  // Move along the axis with the larger absolute gyro reading.
+  if (absGx >= absGy) {
+    if (gx > 0) {
+      row = (row - 1 + PIXELS_PER_COL) % PIXELS_PER_COL;
+    } else {
+      row = (row + 1) % PIXELS_PER_COL;
+    }
+  } else {
+    if (gy > 0) {
+      col = (col + 1) % NUM_COLUMNS;
+    } else {
+      col = (col - 1 + NUM_COLUMNS) % NUM_COLUMNS;
+    }
+  }
+
+  curr = col * PIXELS_PER_COL + row;
 }
-
-//Initialise board
-void initialise(){
-  // red dot (current dot) always starts in the same square
-  int curr = 3;
-  int target = chooseLED(curr, excluded);
-
-}
-
 
 
 // Mark LEDs that are too close to the current point (around a 5x5 box)
 // and then choose a random LED that is available
-void chooseLED(int curr, bool excluded[num_leds]) {
+int chooseLED(int curr, bool excluded[num_leds]) {
   for (int i = 0; i < num_leds; i++) {
     excluded[i] = false;
   }
@@ -201,7 +247,6 @@ void chooseLED(int curr, bool excluded[num_leds]) {
   //iterate from curr col - 2 to curr col + 2
   for (int dc = -2; dc <= 2; dc++) {
     int c = (col + dc + NUM_COLUMNS) % NUM_COLUMNS;
-
     //iterate from curr row - 2 to curr row + 2
     for (int dr = -2; dr <= 2; dr++) {
       int r = (row + dr + PIXELS_PER_COL) % PIXELS_PER_COL;
@@ -219,56 +264,135 @@ void chooseLED(int curr, bool excluded[num_leds]) {
     }
   }
 
-  if (count == 0) {
-    return -1;
-  }
   return available[random(count)];
 }
 
-void setColour(int dot, int colour){
+void setColour(int pixel, char colour){
   if (mqttClient.connected()){
     switch(colour){
+      //red
       case 'R':
+        set_pixel(pixel, 255, 0, 0);
         break;
-        
+      
+      //orange
       case 'O':
+        set_pixel(pixel, 255, 165, 0);
         break;
 
+      //yellow
       case 'Y':
+        set_pixel(pixel, 255, 255, 0);
         break;
       
+      //green
       case 'G':
+        set_pixel(pixel, 0, 255, 0);
         break;
       
+      //blue
       case 'B':
+        set_pixel(pixel, 0, 0, 255);
         break;
       
+      //indigo
       case 'I':
+        set_pixel(pixel, 75, 0, 130);
         break;
       
+      //violet
       case 'V':
+        set_pixel(pixel, 238, 130, 238);
         break;
 
-      
+      default:
+        return;
     }
+
+    mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
   }
 }
 
-// Sets all 72 LEDs to the given (r, g, b) color and publishes to MQTT
-void send_colour_to_all(int r, int g, int b) {
-  if (mqttClient.connected()) {
-    for (int pixel = 0; pixel < num_leds; pixel++) {
-      RGBpayload[pixel * 3 + 0] = (byte)constrain(r, 0, 255);
-      RGBpayload[pixel * 3 + 1] = (byte)constrain(g, 0, 255);
-      RGBpayload[pixel * 3 + 2] = (byte)constrain(b, 0, 255);
-    }
-    mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
-  } else {
-    Serial.println(F("MQTT client not connected, cannot publish."));
+//Collision Logic (What happens when the red dot "catches" the target dot)
+void captured(){
+  rainbow.remove(rainbow.length() - 1);
+  if (rainbow.length() == 0) {
+    gameComplete = true;
+    return;
   }
+
+  targetColour = rainbow.charAt(rainbow.length() - 1);
+  target = chooseLED(curr, excluded);
+}
+
+
+// Sets the color of all 6 vertical pixels in a specific column (0 to 11)
+void set_column_color(int col, int r, int g, int b) {
+  if (col < 0 || col >= NUM_COLUMNS) return;
+
+  int startPixel = col * PIXELS_PER_COL; // e.g. Col 0 -> 0..5, Col 1 -> 6..11
+  for (int row = 0; row < PIXELS_PER_COL; row++) {
+    set_pixel(startPixel + row, r, g, b);
+  }
+}
+
+// Sets the RGB color of a single pixel (0 to 71) in the local buffer
+void set_pixel(int pixel, int r, int g, int b) {
+  if (pixel < 0 || pixel >= num_leds) return;
+
+  RGBpayload[pixel * 3 + 0] = (byte)constrain(r, 0, 255);
+  RGBpayload[pixel * 3 + 1] = (byte)constrain(g, 0, 255);
+  RGBpayload[pixel * 3 + 2] = (byte)constrain(b, 0, 255);
+}
+
+// Columns rotate in 
+void rainbowCycle() {
+  static const byte colors[][3] = {
+    {255, 0, 0},     // Red
+    {255, 165, 0},   // Orange
+    {255, 255, 0},   // Yellow
+    {0, 255, 0},     // Green
+    {0, 0, 255},     // Blue
+    {75, 0, 130},    // Indigo
+    {238, 130, 238}  // Violet
+  };
+  static const int colorCount = sizeof(colors) / sizeof(colors[0]);
+  static int colorOffset = 0;
+  static unsigned long lastChange = 0;
+  static bool firstUpdate = true;
+
+  unsigned long now = millis();
+  if (!firstUpdate && now - lastChange < 500) {
+    return;
+  }
+
+  firstUpdate = false;
+  lastChange = now;
+
+  for (int col = 0; col < NUM_COLUMNS; col++) {
+    int colorIndex = (col + colorOffset) % colorCount;
+    set_column_color(
+      col,
+      colors[colorIndex][0],
+      colors[colorIndex][1],
+      colors[colorIndex][2]
+    );
+  }
+
+  if (mqttClient.connected()) {
+    mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
+  }
+
+  colorOffset = (colorOffset + 1) % colorCount;
 }
 
 // Turns all 72 LEDs off (black)
 void send_all_off() {
-  send_colour_to_all(0, 0, 0);
+  for (int pixel = 0; pixel < num_leds; pixel++) {
+    set_pixel(pixel, 0, 0, 0);
+  }
+
+  if (mqttClient.connected()) {
+    mqttClient.publish(mqtt_topic.c_str(), RGBpayload, payload_size);
+  }
 }
