@@ -224,9 +224,9 @@ void move(int gx, int gy){
     }
   } else {
     if (gy > 0) {
-      col = (col + 1) % NUM_COLUMNS;
-    } else {
       col = (col - 1 + NUM_COLUMNS) % NUM_COLUMNS;
+    } else {
+      col = (col + 1) % NUM_COLUMNS;
     }
   }
 
