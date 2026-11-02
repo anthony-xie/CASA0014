@@ -13,24 +13,24 @@ bool isImuReady()
 
 void readRawImu()
 {
-  uint8_t buff[14];
+  uint8_t buff[6];
 
   // Read output registers:
   // [59-64] Accelerometer
   // [65-66] Temperature
   // [67-72] Gyroscope
-  I2Cread(MPU9250_IMU_ADDRESS, 59, 14, buff);
+  I2Cread(MPU9250_IMU_ADDRESS, 67, 6, buff);
 
-  // Accelerometer, create 16 bits values from 8 bits data
-  accelerometer.x = (buff[0] << 8 | buff[1]);
-  accelerometer.y = (buff[2] << 8 | buff[3]);
-  accelerometer.z = (buff[4] << 8 | buff[5]);
+  // // Accelerometer, create 16 bits values from 8 bits data
+  // accelerometer.x = (buff[0] << 8 | buff[1]);
+  // accelerometer.y = (buff[2] << 8 | buff[3]);
+  // accelerometer.z = (buff[4] << 8 | buff[5]);
 
-  // Temperature, create 16 bits values from 8 bits data
-  temperature.value = (buff[6] << 8 | buff[7]);
+  // // Temperature, create 16 bits values from 8 bits data
+  // temperature.value = (buff[6] << 8 | buff[7]);
 
   // Gyroscope, create 16 bits values from 8 bits data
-  gyroscope.x = (buff[8] << 8 | buff[9]);
-  gyroscope.y = (buff[10] << 8 | buff[11]);
-  gyroscope.z = (buff[12] << 8 | buff[13]);
+  gyroscope.x = (buff[0] << 8 | buff[1]);
+  gyroscope.y = (buff[2] << 8 | buff[3]);
+  gyroscope.z = (buff[4] << 8 | buff[5]);
 }
