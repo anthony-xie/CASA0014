@@ -45,13 +45,12 @@ struct gyroscope_raw {
 //   int16_t value;
 // } temperature;
 
-// struct {
-//   struct {
-//     float x, y, z;
-//   } accelerometer, gyroscope, magnetometer;
+struct {
+  struct {
+    float x, y, z;
+  } gyroscope;
 
-//   float temperature;
-// } normalized;
+} normalized;
 
 unsigned long lastPrintMillis = 0;
 
