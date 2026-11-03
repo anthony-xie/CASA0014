@@ -12,7 +12,8 @@
 - [Wiring](#wiring)
 - [Repository Structure](#repository-structure)
 - [Replication Steps](#replication-steps)
-- [Sources](#sources)
+- [Operational Notes](#operational-notes)
+- [References](#references)
 
 ## Ideation
 
@@ -85,8 +86,8 @@ img/                        Sketches, photos, diagrams
 2. Connect the Arduino to a computer with a USB cable.
 3. Clone or download this repository.
 4. Install the required libraries (Tools > Manage Libraries):
-   - PubSubClient (version x.x.x)
-   - WiFiNINA (version x.x.x)
+   - PubSubClient (version 2.8)
+   - WiFiNINA (version 2.1.1)
 5. Create an `arduino_secrets.h` file and enter your Wi-Fi and MQTT details in the following format:
 
    ```c++
@@ -101,7 +102,12 @@ img/                        Sketches, photos, diagrams
 8. Once the connection is made, unplug the USB cable and connect a battery to the Arduino for easier movement.
 9. Rotate the gyroscope and see if the starting pixel moves in the same direction.
 
-## Sources
+## Operational Notes
+
+- Make sure that the accelerometer is facing the right direction, where the pins are on the left and the VCC pin is furthest away from you and the component side is facing up, in order to have the pixel light move in the same direction as the tilt of the sensor.
+- Complete each tilt until the controller is back at a neutral position for the sensor to more accurately read the next movement.
+
+## References
 
 - Code for reading MPU9250 Sensors with Arduino code by HiBit (<https://github.com/hibit-dev/mpu9250/tree/master>)  
 - Vespera Simple Sweep Code and code for MQTT connection by Duncan Wilson (<https://github.com/ucl-casa-ce/casa0014/tree/main/vespera/workshop-sketch/mkr1010_mqtt_simple_random>)  
