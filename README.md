@@ -2,7 +2,7 @@
 
 "Snake"-like game on the Vespera where the movement of the starting pixel is controlled by a gyroscope.
 
-![Web Simulator](img/web_sim.png)
+![Web Simulator](img/sample_movement.gif)
 
 ## Contents
 
@@ -39,6 +39,8 @@ Idea 2 takes inspiration from the classic Snake game where the accelerometer act
 ![Snake Game](img/snake.jpg)
 
 ![Snake Logic](img/snake_2.jpg)
+
+![Ending Screen](img/ending_screen.gif)
 
 ## System Overview
 
